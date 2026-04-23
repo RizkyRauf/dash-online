@@ -32,6 +32,9 @@ export default function DashboardPage() {
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<MediaConfig | null>(null)
+  const [testTarget, setTestTarget] = useState<MediaConfig | null>(null)
+  const [testUrl, setTestUrl] = useState('')
+  const [testResult, setTestResult] = useState<unknown>(null)
   const [exporting, setExporting] = useState(false)
 
   // Fetch summary counts
@@ -115,6 +118,34 @@ export default function DashboardPage() {
     },
     onError: (err: Error) => {
       addToast({ title: 'Error', description: err.message, type: 'error' })
+    },
+  })
+
+  const testMutation = useMutation({
+    mutationFn: async ({ url, type }: { url: string; type: 'article' | 'scrape' }) => {
+      const endpoint = type === 'article' ? '/api/v1/extract/article' : '/api/v1/scrape'
+      const body = type === 'article' 
+        ? { url } 
+        : { url, extract_content: true }
+
+      const response = await fetch(`http://localhost:8000${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+      return response.json()
+    },
+    onSuccess: (data) => {
+      setTestResult(data)
+      addToast({ title: 'Test Success', description: 'API responded successfully', type: 'success' })
+    },
+    onError: (err: Error) => {
+      addToast({ title: 'Test Error', description: err.message, type: 'error' })
     },
   })
 
@@ -256,19 +287,21 @@ export default function DashboardPage() {
                 action="View"
                 onClick={() => { setSortColumn('created_at'); setSortDirection('desc'); setViewMode('table'); setPage(0) }}
               />
-              <QuickStatCard
-                label="All Media"
-                description="View all configured media"
-                action="Browse"
-                onClick={() => { setViewMode('table'); setPage(0) }}
-              />
-              <QuickStatCard
-                label="Add New Config"
-                description="Create a new media configuration"
-                action="Create"
-                onClick={() => navigate('/dashboard/new')}
-              />
-            </div>
+               <QuickStatCard
+                 label="All Media"
+                 description="View all configured media"
+                 action="Browse"
+                 onClick={() => { setViewMode('table'); setPage(0) }}
+               />
+               <QuickStatCard
+                 label="Add New Config"
+                 description="Create a new media configuration"
+                 action="Create"
+                 onClick={() => navigate('/dashboard/new')}
+               />
+             </div>
+
+
           </div>
         )}
 
@@ -390,22 +423,37 @@ export default function DashboardPage() {
                             {formatDate(config.created_at)}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => navigate(`/dashboard/edit/${config.id}`)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setDeleteTarget(config)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
+                               <div className="flex items-center justify-end gap-2">
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   className="text-green-600 border-green-500/30 bg-green-500/5 hover:bg-green-500/10 hover:text-green-700"
+                                   onClick={() => {
+                                     setTestTarget(config)
+                                     setTestUrl('')
+                                     setTestResult(null)
+                                   }}
+                                 >
+                                   Test
+                                 </Button>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   className="text-amber-600 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:text-amber-700"
+                                   onClick={() => navigate(`/dashboard/edit/${config.id}`)}
+                                 >
+                                   Edit
+                                 </Button>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   className="text-red-600 border-red-500/30 bg-red-500/5 hover:bg-red-500/10 hover:text-red-700"
+                                   onClick={() => setDeleteTarget(config)}
+                                 >
+                                   Delete
+                                 </Button>
+                               </div>
+
                           </td>
                         </tr>
                       ))
@@ -445,33 +493,90 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Confirm Delete"
-        description="This action cannot be undone."
-        size="sm"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete <strong className="text-foreground">{deleteTarget?.media_name}</strong>?
-          </p>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              loading={deleteMutation.isPending}
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    </div>
+       {/* Delete Confirmation Modal */}
+       <Modal
+         isOpen={!!deleteTarget}
+         onClose={() => setDeleteTarget(null)}
+         title="Confirm Delete"
+         description="This action cannot be undone."
+         size="sm"
+       >
+         <div className="space-y-4">
+           <p className="text-sm text-muted-foreground">
+             Are you sure you want to delete <strong className="text-foreground">{deleteTarget?.media_name}</strong>?
+           </p>
+           <div className="flex justify-end gap-3">
+             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+               Cancel
+             </Button>
+             <Button
+               variant="destructive"
+               loading={deleteMutation.isPending}
+               onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+             >
+               Delete
+             </Button>
+           </div>
+         </div>
+       </Modal>
+
+       {/* Test Modal */}
+       <Modal
+         isOpen={!!testTarget}
+         onClose={() => {
+           setTestTarget(null)
+           setTestResult(null)
+         }}
+         title="Test Extraction"
+         description={`Testing API for ${testTarget?.media_name}`}
+         size="lg"
+       >
+         <div className="space-y-6">
+           <div className="flex flex-col gap-4">
+             <div>
+               <label className="text-sm font-medium text-muted-foreground">Target URL</label>
+               <Input
+                 placeholder="https://example.com/article"
+                 value={testUrl}
+                 onChange={(e) => setTestUrl(e.target.value)}
+                 className="mt-1"
+               />
+             </div>
+             <div className="flex gap-3">
+               <Button
+                 variant="outline"
+                 className="flex-1"
+                 loading={testMutation.isPending}
+                 onClick={() => testMutation.mutate({ url: testUrl, type: 'article' })}
+                 disabled={!testUrl}
+               >
+                 Test Single Artikel
+               </Button>
+               <Button
+                 className="flex-1"
+                 loading={testMutation.isPending}
+                 onClick={() => testMutation.mutate({ url: testUrl, type: 'scrape' })}
+                 disabled={!testUrl}
+               >
+                 Test Scrape
+               </Button>
+             </div>
+           </div>
+
+           {testResult && (
+             <div className="space-y-2">
+               <label className="text-sm font-medium text-muted-foreground">Result</label>
+               <div className="bg-muted rounded-lg border border-border p-4 overflow-auto max-h-[400px]">
+                 <pre className="text-xs font-mono text-foreground whitespace-pre-wrap">
+                   {JSON.stringify(testResult, null, 2)}
+                 </pre>
+               </div>
+             </div>
+           )}
+         </div>
+       </Modal>
+     </div>
+
   )
 }
 

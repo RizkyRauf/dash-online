@@ -10,7 +10,7 @@ import MediaConfigFormPage from './pages/MediaConfigFormPage'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
       retry: 1,
     },
   },
@@ -35,16 +35,17 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/dashboard/new"
-                element={
-                  <ProtectedRoute>
-                    <MediaConfigFormPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard/edit/:id"
+               <Route
+                 path="/dashboard/new"
+                 element={
+                   <ProtectedRoute>
+                     <MediaConfigFormPage />
+                   </ProtectedRoute>
+                 }
+               />
+               <Route
+                 path="/dashboard/edit/:id"
+
                 element={
                   <ProtectedRoute>
                     <MediaConfigFormPage />
